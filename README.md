@@ -3,7 +3,6 @@
 **Saengibu Analyzer**는 생기부 PDF에서 핵심 키워드를 자동 분석하고 시각화하는 도구입니다.  
 Streamlit 기반 GUI를 제공하며, 별도의 Python 설치 없이 바로 실행할 수 있습니다.
 
----
 
 ## 특징
 - 원클릭 설치 → 원클릭 실행
@@ -11,8 +10,6 @@ Streamlit 기반 GUI를 제공하며, 별도의 Python 설치 없이 바로 실�
 - 의미 가중 점수 기반 상위 키워드 도출
 - TF-IDF × SBERT 하이브리드 분석 알고리즘 적용
 - 사용자 정의 키워드 파일(`역량.txt`, `태도.txt`, `관심사.txt`) 커스텀 가능
-
----
 
 ## 시작하기
 
@@ -27,7 +24,6 @@ Streamlit 기반 GUI를 제공하며, 별도의 Python 설치 없이 바로 실�
 - `start.bat` 실행  
 브라우저에서 앱이 실행됩니다.
 
----
 
 ## Notes
 - 오류 발생 시 godbyeonghunhan@gmail.com으로 문의해주시기 바랍니다.
