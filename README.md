@@ -21,11 +21,9 @@ Streamlit 기반 GUI를 제공하며, 별도의 Python 설치 없이 바로 실�
 
 ### 2. 설치 (최초 1회)
 - `install.bat` 실행  
-필요한 Python 패키지가 자동 설치됩니다.
 
 ### 3. 실행
-- `start.bat` 실행  
-브라우저에서 앱이 실행됩니다.
+- `start.bat` 실행
 
 
 
