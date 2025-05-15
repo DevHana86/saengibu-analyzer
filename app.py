@@ -97,7 +97,6 @@ def 분석_전체(pdf_path, categories):
 
 st.set_page_config(page_title="생기부 키워드 분석 TOOL", layout="wide")
 
-# 상태 관리
 if 'analyzed' not in st.session_state:
     st.session_state.analyzed = False
 if 'page' not in st.session_state:
