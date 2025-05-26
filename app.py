@@ -61,37 +61,53 @@ def load_sbert_model():
 
 def 분석_전체(pdf_path, categories):
     cleaned_text = extract_and_clean_pdf(pdf_path)
+
     with st.spinner("SBERT 모델 로딩 중..."):
         model = load_sbert_model()
-    main_embedding = model.encode(cleaned_text)
+
+    sentences = re.split(r'[.!?]\s*|\n', cleaned_text)
+    sentences = [s.strip() for s in sentences if len(s.strip()) > 10]
+    sentence_embeddings = model.encode(sentences)
 
     chart_data_all = {}
 
     for category, lines in categories.items():
-        documents = [cleaned_text] + [line.split(':', 1)[1] if ':' in line else line for line in lines]
+        documents = [line.split(':', 1)[1] if ':' in line else line for line in lines]
         labels = [line.split(':', 1)[0] if ':' in line else line[:10] for line in lines]
 
-        vectorizer = TfidfVectorizer()
-        tfidf_matrix = vectorizer.fit_transform(documents)
+        keyword_embeddings = model.encode(documents)
+        sim_matrix = util.cos_sim(keyword_embeddings, sentence_embeddings).cpu().numpy()
+
+        keyword_evidence = {}
+        for i, label in enumerate(labels):
+            sentence_scores = list(zip(sentences, sim_matrix[i]))
+            top_sentences = sorted(sentence_scores, key=lambda x: x[1], reverse=True)[:3]
+            keyword_evidence[label] = top_sentences
+
+        main_embedding = model.encode([cleaned_text])
+        sbert_sims = util.cos_sim(main_embedding, keyword_embeddings)[0].cpu().numpy().tolist()
+
+        tfidf_vectorizer = TfidfVectorizer()
+        tfidf_matrix = tfidf_vectorizer.fit_transform([cleaned_text] + documents)
         tfidf_scores = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:])[0]
 
-        sbert_sims = []
-        for line in documents[1:]:
-            line_embedding = model.encode(line)
-            sim = util.cos_sim(main_embedding, line_embedding)[0][0].item()
-            sbert_sims.append(sim)
-
         hybrid_scores = [tfidf_score * (1 + sbert_sim) for tfidf_score, sbert_sim in zip(tfidf_scores, sbert_sims)]
-
         df = pd.DataFrame({
             '키워드': labels,
             'TF-IDF': tfidf_scores,
             'SBERT': sbert_sims,
-            '의미 가중 점수': hybrid_scores
+            '의미 가중 점수': hybrid_scores,
+            '근거 문장': [keyword_evidence[label] for label in labels]
         })
 
-        top_df = df.sort_values('의미 가중 점수', ascending=False).head(5)
-        chart_data_all[category] = top_df
+        df_for_chart = df.drop(columns=['근거 문장'])
+        top_df = df_for_chart.sort_values('의미 가중 점수', ascending=False).head(5)
+
+        chart_data_all[category] = {
+            'chart_df': top_df,
+            'evidence': keyword_evidence
+        }
+
 
     return cleaned_text, chart_data_all
 
@@ -153,13 +169,18 @@ if st.session_state.get('page') == 'result':
     tab1, tab2 = st.tabs(["상위 키워드 요약", "의미 가중 점수 그래프"])
 
     with tab1:
-        st.write("### 🏷️ 상위 키워드")
+        st.write("### 🏷️ 상위 키워드 + 근거 문장 보기")
         cols = st.columns(3)
-        for i, (category, df) in enumerate(chart_data_all.items()):
+        for i, (category, data) in enumerate(chart_data_all.items()):
+            df = data['chart_df']
+            evidence_dict = data['evidence']
+
             with cols[i]:
                 st.markdown(f"<h3 style='color:#FF4B4B'>{category}</h3>", unsafe_allow_html=True)
-                keywords_formatted = '\n'.join([f"#### # {kw}" for kw in df['키워드']])
-                st.markdown(keywords_formatted)
+                for _, row in df.iterrows():
+                    with st.expander(f"🔍 {row['키워드']}"):
+                        for sent, score in evidence_dict[row['키워드']]:
+                            st.markdown(f"- {sent}  \n<span style='color:gray'>유사도: {score:.3f}</span>", unsafe_allow_html=True)
 
     with tab2:
         st.write("### 📈 의미 가중 점수 그래프")
@@ -170,7 +191,9 @@ if st.session_state.get('page') == 'result':
         }
 
         cols = st.columns(3)
-        for i, (category, df) in enumerate(chart_data_all.items()):
+        for i, (category, data) in enumerate(chart_data_all.items()):
+            df = data['chart_df']
+
             with cols[i]:
                 st.markdown(f"##### {category}")
                 chart = alt.Chart(df).mark_bar(
@@ -183,7 +206,6 @@ if st.session_state.get('page') == 'result':
                     tooltip=['키워드', '의미 가중 점수', 'TF-IDF', 'SBERT']
                 ).properties(width=300, height=300)
                 st.altair_chart(chart, use_container_width=True)
-                
 
     st.divider()
     st.write("### 📥 생기부 텍스트 추출본 다운로드")
